@@ -27,6 +27,13 @@ pub enum MilestoneStatus {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MilestoneInput {
+    pub title: String,
+    pub amount: i128,
+    pub deadline: u64,
+}
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Milestone {
     pub id: u32,
     pub title: String,
@@ -81,6 +88,95 @@ pub struct MilestoneEscrowContract;
 #[contractimpl]
 impl MilestoneEscrowContract {
     // Temporary function retained only while the real escrow functions are added.
+    pub fn create_project(
+        env: Env,
+        client: Address,
+        freelancer: Address,
+        asset: Address,
+        title: String,
+        total_amount: i128,
+        milestone_inputs: Vec<MilestoneInput>,
+    ) -> Result<u64, EscrowError> {
+        client.require_auth();
+
+        if total_amount <= 0 {
+            return Err(EscrowError::InvalidAmount);
+        }
+
+        if milestone_inputs.is_empty() {
+            return Err(EscrowError::EmptyMilestones);
+        }
+
+        let current_time = env.ledger().timestamp();
+        let mut calculated_total = 0_i128;
+        let mut milestone_id = 0_u32;
+        let mut milestones = Vec::new(&env);
+
+        for input in milestone_inputs.iter() {
+            if input.amount <= 0 {
+                return Err(EscrowError::InvalidAmount);
+            }
+
+            if input.deadline <= current_time {
+                return Err(EscrowError::InvalidDeadline);
+            }
+
+            calculated_total = calculated_total
+                .checked_add(input.amount)
+                .ok_or(EscrowError::InvalidAmount)?;
+
+            milestones.push_back(Milestone {
+                id: milestone_id,
+                title: input.title,
+                amount: input.amount,
+                deadline: input.deadline,
+                work_reference: String::from_str(&env, ""),
+                status: MilestoneStatus::Pending,
+            });
+
+            milestone_id += 1;
+        }
+
+        if calculated_total != total_amount {
+            return Err(EscrowError::MilestoneTotalMismatch);
+        }
+
+        let project_id = env
+            .storage()
+            .instance()
+            .get(&DataKey::NextProjectId)
+            .unwrap_or(1_u64);
+
+        let project = Project {
+            id: project_id,
+            client,
+            freelancer,
+            asset,
+            title,
+            total_amount,
+            escrowed_amount: 0,
+            released_amount: 0,
+            milestones,
+            status: ProjectStatus::Created,
+        };
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Project(project_id), &project);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::NextProjectId, &(project_id + 1));
+
+        Ok(project_id)
+    }
+    pub fn get_project(env: Env, project_id: u64) -> Result<Project, EscrowError> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Project(project_id))
+            .ok_or(EscrowError::ProjectNotFound)
+    }
+
     pub fn hello(env: Env, to: String) -> Vec<String> {
         vec![&env, String::from_str(&env, "Hello"), to]
     }
