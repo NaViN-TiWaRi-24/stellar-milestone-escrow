@@ -80,6 +80,8 @@ pub enum EscrowError {
     InvalidMilestoneState = 8,
     AlreadyFunded = 9,
     AlreadyPaid = 10,
+    MilestoneNotFound = 11,
+    EmptyWorkReference = 12,
 }
 
 #[contract]
@@ -243,6 +245,52 @@ impl MilestoneEscrowContract {
         Ok(project)
     }
 
+    pub fn submit_milestone(
+        env: Env,
+        project_id: u64,
+        milestone_id: u32,
+        freelancer: Address,
+        work_reference: String,
+    ) -> Result<Project, EscrowError> {
+        freelancer.require_auth();
+
+        if work_reference.len() == 0 {
+            return Err(EscrowError::EmptyWorkReference);
+        }
+
+        let key = DataKey::Project(project_id);
+        let mut project: Project = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::ProjectNotFound)?;
+
+        if project.freelancer != freelancer {
+            return Err(EscrowError::Unauthorized);
+        }
+
+        if project.status != ProjectStatus::Funded && project.status != ProjectStatus::Active {
+            return Err(EscrowError::InvalidProjectState);
+        }
+
+        let mut milestone = project
+            .milestones
+            .get(milestone_id)
+            .ok_or(EscrowError::MilestoneNotFound)?;
+
+        if milestone.status != MilestoneStatus::Pending {
+            return Err(EscrowError::InvalidMilestoneState);
+        }
+
+        milestone.work_reference = work_reference;
+        milestone.status = MilestoneStatus::Submitted;
+        project.milestones.set(milestone_id, milestone);
+        project.status = ProjectStatus::Active;
+
+        env.storage().persistent().set(&key, &project);
+
+        Ok(project)
+    }
     pub fn hello(env: Env, to: String) -> Vec<String> {
         vec![&env, String::from_str(&env, "Hello"), to]
     }

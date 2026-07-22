@@ -157,3 +157,44 @@ fn client_funds_project_with_tokens() {
     assert_eq!(token_client.balance(&client_address), 1_000);
     assert_eq!(token_client.balance(&contract_id), 1_000);
 }
+
+#[test]
+fn freelancer_submits_milestone_work() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(MilestoneEscrowContract, ());
+    let client_address = Address::generate(&env);
+    let freelancer = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let asset = token_contract.address();
+
+    let token_admin_client = token::StellarAssetClient::new(&env, &asset);
+    token_admin_client.mint(&client_address, &1_000);
+
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Website Project"),
+        &1_000,
+        &milestones,
+    );
+
+    contract.accept_project(&project_id, &freelancer);
+    contract.fund_project(&project_id, &client_address);
+
+    let work_reference = String::from_str(&env, "https://example.com/design");
+    let updated_project = contract.submit_milestone(&project_id, &0, &freelancer, &work_reference);
+
+    assert_eq!(updated_project.status, ProjectStatus::Active);
+
+    let submitted_milestone = updated_project.milestones.get(0).unwrap();
+    assert_eq!(submitted_milestone.status, MilestoneStatus::Submitted);
+    assert_eq!(submitted_milestone.work_reference, work_reference);
+}
