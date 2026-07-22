@@ -96,3 +96,26 @@ fn project_ids_increase() {
     assert_eq!(first_id, 1);
     assert_eq!(second_id, 2);
 }
+
+#[test]
+fn freelancer_accepts_project() {
+    let (env, contract_id, client_address, freelancer, asset) = setup();
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Website Project"),
+        &1_000,
+        &milestones,
+    );
+
+    let accepted_project = contract.accept_project(&project_id, &freelancer);
+
+    assert_eq!(accepted_project.status, ProjectStatus::Accepted);
+
+    let stored_project = contract.get_project(&project_id);
+    assert_eq!(stored_project.status, ProjectStatus::Accepted);
+}
