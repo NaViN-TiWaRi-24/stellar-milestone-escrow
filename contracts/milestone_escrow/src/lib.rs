@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, vec, Address, Env, String, Vec,
+    contract, contracterror, contractimpl, contracttype, token, vec, Address, Env, String, Vec,
 };
 
 #[contracttype]
@@ -200,6 +200,45 @@ impl MilestoneEscrowContract {
 
         project.status = ProjectStatus::Accepted;
         env.storage().persistent().set(&key, &project);
+
+        Ok(project)
+    }
+    pub fn fund_project(
+        env: Env,
+        project_id: u64,
+        client: Address,
+    ) -> Result<Project, EscrowError> {
+        client.require_auth();
+
+        let key = DataKey::Project(project_id);
+        let mut project: Project = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::ProjectNotFound)?;
+
+        if project.client != client {
+            return Err(EscrowError::Unauthorized);
+        }
+
+        if project.status != ProjectStatus::Accepted {
+            return Err(EscrowError::InvalidProjectState);
+        }
+
+        if project.escrowed_amount != 0 {
+            return Err(EscrowError::AlreadyFunded);
+        }
+
+        project.escrowed_amount = project.total_amount;
+        project.status = ProjectStatus::Funded;
+        env.storage().persistent().set(&key, &project);
+
+        let token_client = token::Client::new(&env, &project.asset);
+        token_client.transfer(
+            &client,
+            &env.current_contract_address(),
+            &project.total_amount,
+        );
 
         Ok(project)
     }

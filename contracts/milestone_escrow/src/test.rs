@@ -4,7 +4,7 @@ use super::{
     MilestoneEscrowContract, MilestoneEscrowContractClient, MilestoneInput, MilestoneStatus,
     ProjectStatus,
 };
-use soroban_sdk::{testutils::Address as _, vec, Address, Env, String};
+use soroban_sdk::{testutils::Address as _, token, vec, Address, Env, String};
 
 fn setup() -> (Env, Address, Address, Address, Address) {
     let env = Env::default();
@@ -118,4 +118,42 @@ fn freelancer_accepts_project() {
 
     let stored_project = contract.get_project(&project_id);
     assert_eq!(stored_project.status, ProjectStatus::Accepted);
+}
+
+#[test]
+fn client_funds_project_with_tokens() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(MilestoneEscrowContract, ());
+    let client_address = Address::generate(&env);
+    let freelancer = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let asset = token_contract.address();
+
+    let token_admin_client = token::StellarAssetClient::new(&env, &asset);
+    let token_client = token::Client::new(&env, &asset);
+    token_admin_client.mint(&client_address, &2_000);
+
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Website Project"),
+        &1_000,
+        &milestones,
+    );
+
+    contract.accept_project(&project_id, &freelancer);
+    let funded_project = contract.fund_project(&project_id, &client_address);
+
+    assert_eq!(funded_project.status, ProjectStatus::Funded);
+    assert_eq!(funded_project.escrowed_amount, 1_000);
+    assert_eq!(token_client.balance(&client_address), 1_000);
+    assert_eq!(token_client.balance(&contract_id), 1_000);
 }
