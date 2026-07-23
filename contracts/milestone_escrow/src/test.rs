@@ -323,3 +323,45 @@ fn client_cancels_unfunded_project() {
     let stored_project = contract.get_project(&project_id);
     assert_eq!(stored_project.status, ProjectStatus::Cancelled);
 }
+#[test]
+fn freelancer_approves_client_refund_request() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(MilestoneEscrowContract, ());
+    let client_address = Address::generate(&env);
+    let freelancer = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let asset = token_contract.address();
+
+    let token_admin_client = token::StellarAssetClient::new(&env, &asset);
+    let token_client = token::Client::new(&env, &asset);
+    token_admin_client.mint(&client_address, &1_000);
+
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Website Project"),
+        &1_000,
+        &milestones,
+    );
+
+    contract.accept_project(&project_id, &freelancer);
+    contract.fund_project(&project_id, &client_address);
+
+    let requested_project = contract.request_refund(&project_id, &client_address);
+
+    assert_eq!(requested_project.status, ProjectStatus::RefundRequested);
+
+    let refunded_project = contract.approve_refund(&project_id, &freelancer);
+
+    assert_eq!(refunded_project.status, ProjectStatus::Refunded);
+    assert_eq!(token_client.balance(&client_address), 1_000);
+    assert_eq!(token_client.balance(&contract_id), 0);
+}

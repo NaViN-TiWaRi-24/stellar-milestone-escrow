@@ -13,6 +13,7 @@ pub enum ProjectStatus {
     Active,
     Completed,
     Cancelled,
+    RefundRequested,
     Refunded,
 }
 
@@ -431,6 +432,80 @@ impl MilestoneEscrowContract {
 
         project.status = ProjectStatus::Cancelled;
         env.storage().persistent().set(&key, &project);
+
+        Ok(project)
+    }
+    pub fn request_refund(
+        env: Env,
+        project_id: u64,
+        client: Address,
+    ) -> Result<Project, EscrowError> {
+        client.require_auth();
+
+        let key = DataKey::Project(project_id);
+        let mut project: Project = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::ProjectNotFound)?;
+
+        if project.client != client {
+            return Err(EscrowError::Unauthorized);
+        }
+
+        if project.status != ProjectStatus::Funded && project.status != ProjectStatus::Active {
+            return Err(EscrowError::InvalidProjectState);
+        }
+
+        if project.released_amount >= project.escrowed_amount {
+            return Err(EscrowError::InsufficientEscrow);
+        }
+
+        project.status = ProjectStatus::RefundRequested;
+        env.storage().persistent().set(&key, &project);
+
+        Ok(project)
+    }
+    pub fn approve_refund(
+        env: Env,
+        project_id: u64,
+        freelancer: Address,
+    ) -> Result<Project, EscrowError> {
+        freelancer.require_auth();
+
+        let key = DataKey::Project(project_id);
+        let mut project: Project = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::ProjectNotFound)?;
+
+        if project.freelancer != freelancer {
+            return Err(EscrowError::Unauthorized);
+        }
+
+        if project.status != ProjectStatus::RefundRequested {
+            return Err(EscrowError::InvalidProjectState);
+        }
+
+        let refund_amount = project
+            .escrowed_amount
+            .checked_sub(project.released_amount)
+            .ok_or(EscrowError::ArithmeticOverflow)?;
+
+        if refund_amount <= 0 {
+            return Err(EscrowError::InsufficientEscrow);
+        }
+
+        project.status = ProjectStatus::Refunded;
+        env.storage().persistent().set(&key, &project);
+
+        let token_client = token::Client::new(&env, &project.asset);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &project.client,
+            &refund_amount,
+        );
 
         Ok(project)
     }
