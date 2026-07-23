@@ -1,7 +1,8 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, token, vec, Address, Env, String, Vec,
+    contract, contracterror, contractevent, contractimpl, contracttype, token, vec, Address, Env,
+    String, Vec,
 };
 
 #[contracttype]
@@ -88,6 +89,79 @@ pub enum EscrowError {
     InvalidParticipant = 15,
 }
 
+#[contractevent]
+pub struct ProjectCreated {
+    #[topic]
+    pub project_id: u64,
+    pub client: Address,
+    pub freelancer: Address,
+    pub total_amount: i128,
+}
+
+#[contractevent]
+pub struct ProjectAccepted {
+    #[topic]
+    pub project_id: u64,
+    pub freelancer: Address,
+}
+
+#[contractevent]
+pub struct ProjectFunded {
+    #[topic]
+    pub project_id: u64,
+    pub client: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+pub struct MilestoneSubmitted {
+    #[topic]
+    pub project_id: u64,
+    #[topic]
+    pub milestone_id: u32,
+    pub freelancer: Address,
+}
+
+#[contractevent]
+pub struct MilestoneApproved {
+    #[topic]
+    pub project_id: u64,
+    #[topic]
+    pub milestone_id: u32,
+    pub client: Address,
+}
+
+#[contractevent]
+pub struct MilestonePaid {
+    #[topic]
+    pub project_id: u64,
+    #[topic]
+    pub milestone_id: u32,
+    pub freelancer: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+pub struct ProjectCancelled {
+    #[topic]
+    pub project_id: u64,
+    pub client: Address,
+}
+
+#[contractevent]
+pub struct RefundRequested {
+    #[topic]
+    pub project_id: u64,
+    pub client: Address,
+}
+
+#[contractevent]
+pub struct ProjectRefunded {
+    #[topic]
+    pub project_id: u64,
+    pub client: Address,
+    pub amount: i128,
+}
 #[contract]
 pub struct MilestoneEscrowContract;
 
@@ -201,6 +275,13 @@ impl MilestoneEscrowContract {
             .instance()
             .set(&DataKey::NextProjectId, &(project_id + 1));
 
+        ProjectCreated {
+            project_id,
+            client: project.client.clone(),
+            freelancer: project.freelancer.clone(),
+            total_amount: project.total_amount,
+        }
+        .publish(&env);
         Ok(project_id)
     }
     pub fn get_project(env: Env, project_id: u64) -> Result<Project, EscrowError> {
@@ -239,7 +320,11 @@ impl MilestoneEscrowContract {
 
         project.status = ProjectStatus::Accepted;
         env.storage().persistent().set(&key, &project);
-
+        ProjectAccepted {
+            project_id,
+            freelancer,
+        }
+        .publish(&env);
         Ok(project)
     }
     pub fn fund_project(
@@ -278,6 +363,13 @@ impl MilestoneEscrowContract {
             &env.current_contract_address(),
             &project.total_amount,
         );
+
+        ProjectFunded {
+            project_id,
+            client,
+            amount: project.total_amount,
+        }
+        .publish(&env);
 
         Ok(project)
     }
@@ -326,6 +418,13 @@ impl MilestoneEscrowContract {
 
         env.storage().persistent().set(&key, &project);
 
+        MilestoneSubmitted {
+            project_id,
+            milestone_id,
+            freelancer,
+        }
+        .publish(&env);
+
         Ok(project)
     }
     pub fn approve_milestone(
@@ -365,6 +464,12 @@ impl MilestoneEscrowContract {
 
         env.storage().persistent().set(&key, &project);
 
+        MilestoneApproved {
+            project_id,
+            milestone_id,
+            client,
+        }
+        .publish(&env);
         Ok(project)
     }
     pub fn release_milestone_payment(
@@ -440,6 +545,14 @@ impl MilestoneEscrowContract {
             &milestone.amount,
         );
 
+        MilestonePaid {
+            project_id,
+            milestone_id,
+            freelancer: project.freelancer.clone(),
+            amount: milestone.amount,
+        }
+        .publish(&env);
+
         Ok(project)
     }
     pub fn cancel_project(
@@ -467,6 +580,7 @@ impl MilestoneEscrowContract {
         project.status = ProjectStatus::Cancelled;
         env.storage().persistent().set(&key, &project);
 
+        ProjectCancelled { project_id, client }.publish(&env);
         Ok(project)
     }
     pub fn request_refund(
@@ -498,6 +612,7 @@ impl MilestoneEscrowContract {
         project.status = ProjectStatus::RefundRequested;
         env.storage().persistent().set(&key, &project);
 
+        RefundRequested { project_id, client }.publish(&env);
         Ok(project)
     }
     pub fn approve_refund(
@@ -540,6 +655,13 @@ impl MilestoneEscrowContract {
             &project.client,
             &refund_amount,
         );
+
+        ProjectRefunded {
+            project_id,
+            client: project.client.clone(),
+            amount: refund_amount,
+        }
+        .publish(&env);
 
         Ok(project)
     }
