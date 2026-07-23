@@ -1,4 +1,4 @@
-import { Client, type Project } from "milestone-escrow";
+import type { Project } from "milestone-escrow";
 
 const rpcUrl = import.meta.env.VITE_STELLAR_RPC_URL;
 const networkPassphrase = import.meta.env.VITE_STELLAR_NETWORK_PASSPHRASE;
@@ -12,7 +12,9 @@ function requireConfiguration(value: string | undefined, name: string): string {
   return value;
 }
 
-function createEscrowClient(publicKey: string): Client {
+async function createEscrowClient(publicKey: string) {
+  const { Client } = await import("milestone-escrow");
+
   return new Client({
     contractId: requireConfiguration(
       contractId,
@@ -26,12 +28,11 @@ function createEscrowClient(publicKey: string): Client {
     publicKey,
   });
 }
-
 export async function getUserProjectIds(
   publicKey: string,
 ): Promise<bigint[]> {
   try {
-    const client = createEscrowClient(publicKey);
+    const client = await createEscrowClient(publicKey);
     const transaction = await client.get_user_projects({
       user: publicKey,
     });
@@ -49,7 +50,7 @@ export async function getUserProjects(
   publicKey: string,
 ): Promise<Project[]> {
   try {
-    const client = createEscrowClient(publicKey);
+    const client = await createEscrowClient(publicKey);
     const idsTransaction = await client.get_user_projects({
       user: publicKey,
     });
