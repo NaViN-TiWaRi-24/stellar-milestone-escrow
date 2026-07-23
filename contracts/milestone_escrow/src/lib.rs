@@ -85,6 +85,7 @@ pub enum EscrowError {
     EmptyWorkReference = 12,
     InsufficientEscrow = 13,
     ArithmeticOverflow = 14,
+    InvalidParticipant = 15,
 }
 
 #[contract]
@@ -103,6 +104,9 @@ impl MilestoneEscrowContract {
         milestone_inputs: Vec<MilestoneInput>,
     ) -> Result<u64, EscrowError> {
         client.require_auth();
+        if client == freelancer {
+            return Err(EscrowError::InvalidParticipant);
+        }
 
         if total_amount <= 0 {
             return Err(EscrowError::InvalidAmount);
@@ -169,6 +173,30 @@ impl MilestoneEscrowContract {
             .persistent()
             .set(&DataKey::Project(project_id), &project);
 
+        let client_key = DataKey::UserProjects(project.client.clone());
+        let mut client_projects: Vec<u64> = env
+            .storage()
+            .persistent()
+            .get(&client_key)
+            .unwrap_or(Vec::new(&env));
+
+        client_projects.push_back(project_id);
+        env.storage()
+            .persistent()
+            .set(&client_key, &client_projects);
+
+        let freelancer_key = DataKey::UserProjects(project.freelancer.clone());
+        let mut freelancer_projects: Vec<u64> = env
+            .storage()
+            .persistent()
+            .get(&freelancer_key)
+            .unwrap_or(Vec::new(&env));
+
+        freelancer_projects.push_back(project_id);
+        env.storage()
+            .persistent()
+            .set(&freelancer_key, &freelancer_projects);
+
         env.storage()
             .instance()
             .set(&DataKey::NextProjectId, &(project_id + 1));
@@ -180,6 +208,12 @@ impl MilestoneEscrowContract {
             .persistent()
             .get(&DataKey::Project(project_id))
             .ok_or(EscrowError::ProjectNotFound)
+    }
+    pub fn get_user_projects(env: Env, user: Address) -> Vec<u64> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::UserProjects(user))
+            .unwrap_or(Vec::new(&env))
     }
     pub fn accept_project(
         env: Env,

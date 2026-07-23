@@ -365,3 +365,31 @@ fn freelancer_approves_client_refund_request() {
     assert_eq!(token_client.balance(&client_address), 1_000);
     assert_eq!(token_client.balance(&contract_id), 0);
 }
+#[test]
+fn projects_are_indexed_for_client_and_freelancer() {
+    let (env, contract_id, client_address, freelancer, asset) = setup();
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Website Project"),
+        &1_000,
+        &milestones,
+    );
+
+    let client_projects = contract.get_user_projects(&client_address);
+    let freelancer_projects = contract.get_user_projects(&freelancer);
+
+    assert_eq!(client_projects.len(), 1);
+    assert_eq!(client_projects.get(0).unwrap(), project_id);
+
+    assert_eq!(freelancer_projects.len(), 1);
+    assert_eq!(freelancer_projects.get(0).unwrap(), project_id);
+
+    let unrelated_user = Address::generate(&env);
+    let unrelated_projects = contract.get_user_projects(&unrelated_user);
+    assert_eq!(unrelated_projects.len(), 0);
+}
