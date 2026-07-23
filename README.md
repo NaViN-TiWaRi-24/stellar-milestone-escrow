@@ -106,3 +106,16 @@ This project is under development and has not been audited. It currently uses lo
 ## Author
 
 Developed for the Stellar Journey to Mastery Level 4 Green Belt challenge.
+## Stellar Testnet Deployment
+
+The Milestone Escrow Soroban contract is deployed on Stellar Testnet.
+
+- **Contract ID:** `CAF4T5XILTB4FMCCCN63K5CVMMZEXIPR54GPFGVGOCFMXDHQW3QBHDRL`
+- **Network:** Stellar Testnet
+- **Optimized WASM size:** 15,503 bytes
+- **Contract functions:** 11
+- **WASM upload transaction:** [`000f05e8...690ac`](https://stellar.expert/explorer/testnet/tx/000f05e82d1ddfcf051027e0c89715a2b7eeac95278bfd351245fe87bff690ac)
+- **Deployment transaction:** [`9a01d1a9...60826`](https://stellar.expert/explorer/testnet/tx/9a01d1a959067874b5e69382a243dd47ae8d4fbed9f293615f22080b75560826)
+- **Contract explorer:** [Open in Stellar Lab](https://lab.stellar.org/r/testnet/contract/CAF4T5XILTB4FMCCCN63K5CVMMZEXIPR54GPFGVGOCFMXDHQW3QBHDRL)
+
+The deployment is for testing only and does not use real funds.
