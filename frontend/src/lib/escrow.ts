@@ -1,9 +1,24 @@
-import type { Project } from "milestone-escrow";
 import { signTransaction } from "@stellar/freighter-api";
+import type { Project, Client } from "milestone-escrow";
 
 const rpcUrl = import.meta.env.VITE_STELLAR_RPC_URL;
 const networkPassphrase = import.meta.env.VITE_STELLAR_NETWORK_PASSPHRASE;
 const contractId = import.meta.env.VITE_ESCROW_CONTRACT_ID;
+const transactionTimeoutSeconds = 60;
+
+export type WriteTransactionStatus =
+  | "preparing"
+  | "waiting-for-signature"
+  | "submitting";
+
+export type WriteStatusCallback = (status: WriteTransactionStatus) => void;
+
+export type ProjectWriteReceipt = {
+  project: Project;
+  transactionHash: string;
+};
+
+type ProjectTransaction = Awaited<ReturnType<Client["accept_project"]>>;
 
 function requireConfiguration(value: string | undefined, name: string): string {
   if (!value) {
@@ -13,10 +28,19 @@ function requireConfiguration(value: string | undefined, name: string): string {
   return value;
 }
 
-async function createEscrowClient(publicKey: string) {
-  const { Client } = await import("milestone-escrow");
+async function createEscrowClient(
+  publicKey: string,
+  onStatusChange?: WriteStatusCallback,
+) {
+  const { Client: EscrowClient } = await import("milestone-escrow");
+  const trackedSignTransaction: typeof signTransaction = async (...args) => {
+    onStatusChange?.("waiting-for-signature");
+    const signedTransaction = await signTransaction(...args);
+    onStatusChange?.("submitting");
+    return signedTransaction;
+  };
 
-  return new Client({
+  return new EscrowClient({
     contractId: requireConfiguration(
       contractId,
       "VITE_ESCROW_CONTRACT_ID",
@@ -25,62 +49,89 @@ async function createEscrowClient(publicKey: string) {
       networkPassphrase,
       "VITE_STELLAR_NETWORK_PASSPHRASE",
     ),
-       rpcUrl: requireConfiguration(rpcUrl, "VITE_STELLAR_RPC_URL"),
+    rpcUrl: requireConfiguration(rpcUrl, "VITE_STELLAR_RPC_URL"),
     publicKey,
-    signTransaction,
+    signTransaction: onStatusChange ? trackedSignTransaction : signTransaction,
   });
 }
-export async function getUserProjectIds(
+
+function getTransactionHash(
+  response: { sendTransactionResponse?: { hash?: string } },
+): string {
+  const hash = response.sendTransactionResponse?.hash;
+  if (!hash) {
+    throw new Error(
+      "The transaction completed without returning a transaction hash.",
+    );
+  }
+  return hash;
+}
+
+async function executeProjectWrite(
   publicKey: string,
-): Promise<bigint[]> {
+  buildTransaction: (
+    client: Client,
+  ) => Promise<ProjectTransaction>,
+  onStatusChange?: WriteStatusCallback,
+): Promise<ProjectWriteReceipt> {
+  try {
+    onStatusChange?.("preparing");
+    const client = await createEscrowClient(publicKey, onStatusChange);
+    const transaction = await buildTransaction(client);
+    const response = await transaction.signAndSend();
+
+    if (response.result.isErr()) {
+      throw new Error(response.result.unwrapErr().message);
+    }
+
+    return {
+      project: response.result.unwrap(),
+      transactionHash: getTransactionHash(response),
+    };
+  } catch (error) {
+    console.error("Escrow contract write failed:", error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Unable to complete the transaction on Stellar Testnet.");
+  }
+}
+
+export async function getUserProjectIds(publicKey: string): Promise<bigint[]> {
   try {
     const client = await createEscrowClient(publicKey);
-    const transaction = await client.get_user_projects({
-      user: publicKey,
-    });
-
+    const transaction = await client.get_user_projects({ user: publicKey });
     return transaction.result;
   } catch (error) {
     console.error("Failed to load user projects:", error);
-
     throw new Error(
       "Unable to load your projects from Stellar Testnet. Please try again.",
     );
   }
 }
-export async function getUserProjects(
-  publicKey: string,
-): Promise<Project[]> {
+
+export async function getUserProjects(publicKey: string): Promise<Project[]> {
   try {
     const client = await createEscrowClient(publicKey);
-    const idsTransaction = await client.get_user_projects({
-      user: publicKey,
-    });
+    const idsTransaction = await client.get_user_projects({ user: publicKey });
 
-    const projects = await Promise.all(
+    return await Promise.all(
       idsTransaction.result.map(async (projectId) => {
-        const projectTransaction = await client.get_project({
-          project_id: projectId,
-        });
-
-        if (projectTransaction.result.isErr()) {
-          const contractError = projectTransaction.result.unwrapErr();
-          throw new Error(contractError.message);
+        const transaction = await client.get_project({ project_id: projectId });
+        if (transaction.result.isErr()) {
+          throw new Error(transaction.result.unwrapErr().message);
         }
-
-        return projectTransaction.result.unwrap();
+        return transaction.result.unwrap();
       }),
     );
-
-    return projects;
   } catch (error) {
     console.error("Failed to load project details:", error);
-
     throw new Error(
       "Unable to load project details from Stellar Testnet. Please try again.",
     );
   }
 }
+
 export type CreateProjectRequest = {
   client: string;
   freelancer: string;
@@ -92,9 +143,7 @@ export type CreateProjectRequest = {
     amount: bigint;
     deadline: bigint;
   }>;
-  onStatusChange?: (
-    status: "preparing" | "waiting-for-signature" | "submitting",
-  ) => void;
+  onStatusChange?: WriteStatusCallback;
 };
 
 export type CreateProjectReceipt = {
@@ -106,29 +155,12 @@ export async function createProject(
   request: CreateProjectRequest,
 ): Promise<CreateProjectReceipt> {
   try {
-    const { Client } = await import("milestone-escrow");
-    const trackedSignTransaction: typeof signTransaction = async (...args) => {
-      request.onStatusChange?.("waiting-for-signature");
-      const signedTransaction = await signTransaction(...args);
-      request.onStatusChange?.("submitting");
-      return signedTransaction;
-    };
-    const client = new Client({
-      contractId: requireConfiguration(
-        contractId,
-        "VITE_ESCROW_CONTRACT_ID",
-      ),
-      networkPassphrase: requireConfiguration(
-        networkPassphrase,
-        "VITE_STELLAR_NETWORK_PASSPHRASE",
-      ),
-      rpcUrl: requireConfiguration(rpcUrl, "VITE_STELLAR_RPC_URL"),
-      publicKey: request.client,
-      signTransaction: trackedSignTransaction,
-    });
-
     request.onStatusChange?.("preparing");
-    const assembledTransaction = await client.create_project(
+    const client = await createEscrowClient(
+      request.client,
+      request.onStatusChange,
+    );
+    const transaction = await client.create_project(
       {
         client: request.client,
         freelancer: request.freelancer,
@@ -141,41 +173,164 @@ export async function createProject(
           deadline: milestone.deadline,
         })),
       },
-      {
-        timeoutInSeconds: 60,
-      },
+      { timeoutInSeconds: transactionTimeoutSeconds },
     );
-
-    const sentTransaction =
-      await assembledTransaction.signAndSend();
-
-    if (sentTransaction.result.isErr()) {
-      const contractError = sentTransaction.result.unwrapErr();
-      throw new Error(contractError.message);
+    const response = await transaction.signAndSend();
+    if (response.result.isErr()) {
+      throw new Error(response.result.unwrapErr().message);
     }
-
-    const transactionHash =
-      sentTransaction.sendTransactionResponse?.hash;
-
-    if (!transactionHash) {
-      throw new Error(
-        "The transaction completed without returning a transaction hash.",
-      );
-    }
-
     return {
-      projectId: sentTransaction.result.unwrap(),
-      transactionHash,
+      projectId: response.result.unwrap(),
+      transactionHash: getTransactionHash(response),
     };
   } catch (error) {
     console.error("Failed to create escrow project:", error);
-
-    if (error instanceof Error) {
-      throw error;
-    }
-
-    throw new Error(
-      "Unable to create the project on Stellar Testnet.",
-    );
+    if (error instanceof Error) throw error;
+    throw new Error("Unable to create the project on Stellar Testnet.");
   }
+}
+
+export function acceptProject(
+  projectId: bigint,
+  freelancer: string,
+  onStatusChange?: WriteStatusCallback,
+) {
+  return executeProjectWrite(
+    freelancer,
+    (client) =>
+      client.accept_project(
+        { project_id: projectId, freelancer },
+        { timeoutInSeconds: transactionTimeoutSeconds },
+      ),
+    onStatusChange,
+  );
+}
+
+export function fundProject(
+  projectId: bigint,
+  clientAddress: string,
+  onStatusChange?: WriteStatusCallback,
+) {
+  return executeProjectWrite(
+    clientAddress,
+    (client) =>
+      client.fund_project(
+        { project_id: projectId, client: clientAddress },
+        { timeoutInSeconds: transactionTimeoutSeconds },
+      ),
+    onStatusChange,
+  );
+}
+
+export function submitMilestone(
+  projectId: bigint,
+  milestoneId: number,
+  freelancer: string,
+  workReference: string,
+  onStatusChange?: WriteStatusCallback,
+) {
+  return executeProjectWrite(
+    freelancer,
+    (client) =>
+      client.submit_milestone(
+        {
+          project_id: projectId,
+          milestone_id: milestoneId,
+          freelancer,
+          work_reference: workReference,
+        },
+        { timeoutInSeconds: transactionTimeoutSeconds },
+      ),
+    onStatusChange,
+  );
+}
+
+export function approveMilestone(
+  projectId: bigint,
+  milestoneId: number,
+  clientAddress: string,
+  onStatusChange?: WriteStatusCallback,
+) {
+  return executeProjectWrite(
+    clientAddress,
+    (client) =>
+      client.approve_milestone(
+        {
+          project_id: projectId,
+          milestone_id: milestoneId,
+          client: clientAddress,
+        },
+        { timeoutInSeconds: transactionTimeoutSeconds },
+      ),
+    onStatusChange,
+  );
+}
+
+export function releaseMilestonePayment(
+  projectId: bigint,
+  milestoneId: number,
+  clientAddress: string,
+  onStatusChange?: WriteStatusCallback,
+) {
+  return executeProjectWrite(
+    clientAddress,
+    (client) =>
+      client.release_milestone_payment(
+        {
+          project_id: projectId,
+          milestone_id: milestoneId,
+          client: clientAddress,
+        },
+        { timeoutInSeconds: transactionTimeoutSeconds },
+      ),
+    onStatusChange,
+  );
+}
+
+export function cancelProject(
+  projectId: bigint,
+  clientAddress: string,
+  onStatusChange?: WriteStatusCallback,
+) {
+  return executeProjectWrite(
+    clientAddress,
+    (client) =>
+      client.cancel_project(
+        { project_id: projectId, client: clientAddress },
+        { timeoutInSeconds: transactionTimeoutSeconds },
+      ),
+    onStatusChange,
+  );
+}
+
+export function requestRefund(
+  projectId: bigint,
+  clientAddress: string,
+  onStatusChange?: WriteStatusCallback,
+) {
+  return executeProjectWrite(
+    clientAddress,
+    (client) =>
+      client.request_refund(
+        { project_id: projectId, client: clientAddress },
+        { timeoutInSeconds: transactionTimeoutSeconds },
+      ),
+    onStatusChange,
+  );
+}
+
+export function approveRefund(
+  projectId: bigint,
+  freelancer: string,
+  onStatusChange?: WriteStatusCallback,
+) {
+  return executeProjectWrite(
+    freelancer,
+    (client) =>
+      client.approve_refund(
+        { project_id: projectId, freelancer },
+        { timeoutInSeconds: transactionTimeoutSeconds },
+      ),
+    onStatusChange,
+  );
 }

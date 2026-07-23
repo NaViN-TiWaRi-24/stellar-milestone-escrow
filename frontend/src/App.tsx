@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import {
   connectWallet,
@@ -9,6 +9,7 @@ import {
 import type { Project } from "milestone-escrow";
 import { getUserProjects } from "./lib/escrow";
 import { CreateProjectModal } from "./components/CreateProjectModal";
+import { ProjectDetailsModal } from "./components/ProjectDetailsModal";
 
 
 const stats = [
@@ -19,6 +20,7 @@ const stats = [
 
 function App() {
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectsRefreshKey, setProjectsRefreshKey] = useState(0);
   const [wallet, setWallet] = useState<WalletSession | null>(null);
   const [walletStatus, setWalletStatus] = useState<
@@ -173,6 +175,20 @@ const [projectsError, setProjectsError] = useState<string | null>(null);
       setWalletStatus("idle");
     }
   }
+
+  const closeProjectDetails = useCallback(() => {
+    setSelectedProject(null);
+  }, []);
+
+  const handleProjectUpdated = useCallback((updatedProject: Project) => {
+    setSelectedProject(updatedProject);
+    setUserProjects((projects) =>
+      projects.map((project) =>
+        project.id === updatedProject.id ? updatedProject : project,
+      ),
+    );
+    setProjectsRefreshKey((current) => current + 1);
+  }, []);
 
   return (
     <div className="app-shell">
@@ -386,7 +402,12 @@ const [projectsError, setProjectsError] = useState<string | null>(null);
                 {project.total_amount.toLocaleString()} token units
               </strong>
             </div>
-            <button type="button">Open project</button>
+            <button
+              type="button"
+              onClick={() => setSelectedProject(project)}
+            >
+              Open project
+            </button>
           </div>
         </article>
       );
@@ -406,6 +427,13 @@ const [projectsError, setProjectsError] = useState<string | null>(null);
         onClose={() => setIsCreateProjectOpen(false)}
         onConnectWallet={handleWalletConnect}
         onCreated={() => setProjectsRefreshKey((current) => current + 1)}
+      />
+
+      <ProjectDetailsModal
+        project={selectedProject}
+        walletAddress={wallet?.address ?? null}
+        onClose={closeProjectDetails}
+        onProjectUpdated={handleProjectUpdated}
       />
     </div>
   );
