@@ -8,6 +8,7 @@ import {
 } from "./lib/wallet";
 import type { Project } from "milestone-escrow";
 import { getUserProjects } from "./lib/escrow";
+import { CreateProjectModal } from "./components/CreateProjectModal";
 
 
 const stats = [
@@ -17,6 +18,8 @@ const stats = [
 ];
 
 function App() {
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const [projectsRefreshKey, setProjectsRefreshKey] = useState(0);
   const [wallet, setWallet] = useState<WalletSession | null>(null);
   const [walletStatus, setWalletStatus] = useState<
     "restoring" | "idle" | "connecting"
@@ -111,8 +114,11 @@ const [projectsError, setProjectsError] = useState<string | null>(null);
     };
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     if (!wallet) {
+      setUserProjects([]);
+      setProjectsStatus("idle");
+      setProjectsError(null);
       return;
     }
 
@@ -148,7 +154,7 @@ const [projectsError, setProjectsError] = useState<string | null>(null);
     return () => {
       isActive = false;
     };
-  }, [wallet]);
+  }, [wallet, projectsRefreshKey]);
 
   async function handleWalletConnect() {
     setWalletStatus("connecting");
@@ -232,7 +238,11 @@ const [projectsError, setProjectsError] = useState<string | null>(null);
             </p>
 
             <div className="hero-actions">
-              <button className="primary-button" type="button">
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => setIsCreateProjectOpen(true)}
+              >
                 Create project
               </button>
               <a className="secondary-button" href="#projects">
@@ -389,6 +399,14 @@ const [projectsError, setProjectsError] = useState<string | null>(null);
         <span>Stellar Milestone Escrow</span>
         <span>Built on Stellar · Testnet MVP</span>
       </footer>
+
+      <CreateProjectModal
+        isOpen={isCreateProjectOpen}
+        walletAddress={wallet?.address ?? null}
+        onClose={() => setIsCreateProjectOpen(false)}
+        onConnectWallet={handleWalletConnect}
+        onCreated={() => setProjectsRefreshKey((current) => current + 1)}
+      />
     </div>
   );
 }
