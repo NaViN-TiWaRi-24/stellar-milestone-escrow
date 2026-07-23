@@ -1,8 +1,8 @@
 #![cfg(test)]
 
 use super::{
-    MilestoneEscrowContract, MilestoneEscrowContractClient, MilestoneInput, MilestoneStatus,
-    ProjectStatus,
+    EscrowError, MilestoneEscrowContract, MilestoneEscrowContractClient, MilestoneInput,
+    MilestoneStatus, ProjectStatus,
 };
 use soroban_sdk::{testutils::Address as _, token, vec, Address, Env, String};
 
@@ -392,4 +392,129 @@ fn projects_are_indexed_for_client_and_freelancer() {
     let unrelated_user = Address::generate(&env);
     let unrelated_projects = contract.get_user_projects(&unrelated_user);
     assert_eq!(unrelated_projects.len(), 0);
+}
+#[test]
+fn client_cannot_be_the_freelancer() {
+    let (env, contract_id, client_address, _, asset) = setup();
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let result = contract.try_create_project(
+        &client_address,
+        &client_address,
+        &asset,
+        &String::from_str(&env, "Invalid Project"),
+        &1_000,
+        &milestones,
+    );
+
+    assert_eq!(result, Err(Ok(EscrowError::InvalidParticipant)));
+}
+
+#[test]
+fn milestone_total_must_match_project_total() {
+    let (env, contract_id, client_address, freelancer, asset) = setup();
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let result = contract.try_create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Invalid Total"),
+        &999,
+        &milestones,
+    );
+
+    assert_eq!(result, Err(Ok(EscrowError::MilestoneTotalMismatch)));
+}
+
+#[test]
+fn project_cannot_be_accepted_twice() {
+    let (env, contract_id, client_address, freelancer, asset) = setup();
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Website Project"),
+        &1_000,
+        &milestones,
+    );
+
+    contract.accept_project(&project_id, &freelancer);
+
+    let result = contract.try_accept_project(&project_id, &freelancer);
+
+    assert_eq!(result, Err(Ok(EscrowError::InvalidProjectState)));
+}
+#[test]
+fn unrelated_user_cannot_accept_project() {
+    let (env, contract_id, client_address, freelancer, asset) = setup();
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+    let unrelated_user = Address::generate(&env);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Website Project"),
+        &1_000,
+        &milestones,
+    );
+
+    let result = contract.try_accept_project(&project_id, &unrelated_user);
+
+    assert_eq!(result, Err(Ok(EscrowError::Unauthorized)));
+}
+#[test]
+fn paid_milestone_cannot_be_released_twice() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(MilestoneEscrowContract, ());
+    let client_address = Address::generate(&env);
+    let freelancer = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let asset = token_contract.address();
+
+    let token_admin_client = token::StellarAssetClient::new(&env, &asset);
+    let token_client = token::Client::new(&env, &asset);
+    token_admin_client.mint(&client_address, &1_000);
+
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Website Project"),
+        &1_000,
+        &milestones,
+    );
+
+    contract.accept_project(&project_id, &freelancer);
+    contract.fund_project(&project_id, &client_address);
+
+    contract.submit_milestone(
+        &project_id,
+        &0,
+        &freelancer,
+        &String::from_str(&env, "https://example.com/design"),
+    );
+
+    contract.approve_milestone(&project_id, &0, &client_address);
+    contract.release_milestone_payment(&project_id, &0, &client_address);
+
+    let result = contract.try_release_milestone_payment(&project_id, &0, &client_address);
+
+    assert_eq!(result, Err(Ok(EscrowError::AlreadyPaid)));
+    assert_eq!(token_client.balance(&freelancer), 400);
+    assert_eq!(token_client.balance(&contract_id), 600);
 }
