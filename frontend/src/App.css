@@ -575,3 +575,63 @@ footer {
     flex-direction: column;
   }
 }
+.wallet-button:disabled {
+  cursor: wait;
+  opacity: 0.78;
+}
+
+.wallet-button.connected,
+.wallet-button.connected:disabled {
+  cursor: default;
+  border: 1px solid #cfeee2;
+  background: var(--success-soft);
+  color: var(--success);
+  opacity: 1;
+}
+
+.wallet-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: min(1180px, 88vw);
+  margin: 18px auto 0;
+  padding: 13px 16px;
+  border: 1px solid #f3b8b8;
+  border-radius: 12px;
+  background: #fff0f0;
+  color: #a21d2d;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.wallet-error button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.wallet-error button:hover {
+  background: rgba(162, 29, 45, 0.08);
+}
+
+@media (max-width: 860px) {
+  .wallet-error {
+    width: 90vw;
+  }
+}
+
+@media (max-width: 520px) {
+  .wallet-error {
+    width: 92vw;
+    font-size: 0.78rem;
+  }
+}

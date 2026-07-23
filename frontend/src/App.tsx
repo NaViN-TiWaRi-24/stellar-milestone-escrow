@@ -1,4 +1,11 @@
+import { useEffect, useState } from "react";
 import "./App.css";
+import {
+  connectWallet,
+  restoreWallet,
+  shortenAddress,
+  type WalletSession,
+} from "./lib/wallet";
 
 const projects = [
   {
@@ -28,6 +35,54 @@ const stats = [
 ];
 
 function App() {
+  const [wallet, setWallet] = useState<WalletSession | null>(null);
+  const [walletStatus, setWalletStatus] = useState<
+    "restoring" | "idle" | "connecting"
+  >("restoring");
+  const [walletError, setWalletError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function restorePreviousWallet() {
+      try {
+        const session = await restoreWallet();
+
+        if (isActive && session) {
+          setWallet(session);
+        }
+      } finally {
+        if (isActive) {
+          setWalletStatus("idle");
+        }
+      }
+    }
+
+    void restorePreviousWallet();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  async function handleWalletConnect() {
+    setWalletStatus("connecting");
+    setWalletError(null);
+
+    try {
+      const session = await connectWallet();
+      setWallet(session);
+    } catch (error) {
+      setWalletError(
+        error instanceof Error
+          ? error.message
+          : "Unable to connect the Freighter wallet.",
+      );
+    } finally {
+      setWalletStatus("idle");
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -46,10 +101,36 @@ function App() {
           <a href="#activity">Activity</a>
         </nav>
 
-        <button className="wallet-button" type="button">
-          Connect wallet
-        </button>
-      </header>
+        <button
+  className={`wallet-button ${wallet ? "connected" : ""}`}
+  type="button"
+  onClick={handleWalletConnect}
+  disabled={walletStatus !== "idle" || Boolean(wallet)}
+  aria-busy={walletStatus !== "idle"}
+  title={wallet?.address}
+>
+  {wallet
+    ? shortenAddress(wallet.address)
+    : walletStatus === "restoring"
+      ? "Checking wallet..."
+      : walletStatus === "connecting"
+        ? "Connecting..."
+        : "Connect wallet"}
+</button>
+           </header>
+
+      {walletError && (
+        <div className="wallet-error" role="alert">
+          <span>{walletError}</span>
+          <button
+            type="button"
+            onClick={() => setWalletError(null)}
+            aria-label="Dismiss wallet error"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <main>
         <section className="hero" id="dashboard">
