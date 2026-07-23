@@ -1,122 +1,177 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import "./App.css";
+
+const projects = [
+  {
+    id: 1,
+    title: "Landing Page Design",
+    role: "Client",
+    freelancer: "GCFX...8Q2P",
+    progress: 65,
+    amount: "1,000 USDC",
+    status: "Active",
+  },
+  {
+    id: 2,
+    title: "Mobile App Development",
+    role: "Freelancer",
+    freelancer: "You",
+    progress: 30,
+    amount: "2,500 USDC",
+    status: "Funded",
+  },
+];
+
+const stats = [
+  { label: "Active projects", value: "2", detail: "1 as client · 1 as freelancer" },
+  { label: "Funds in escrow", value: "3,500", detail: "USDC on Stellar Testnet" },
+  { label: "Released payments", value: "400", detail: "Across completed milestones" },
+];
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
+    <div className="app-shell">
+      <header className="topbar">
+        <a className="brand" href="/" aria-label="Stellar Milestone Escrow home">
+          <span className="brand-mark">S</span>
+          <span>
+            Stellar <strong>Escrow</strong>
+          </span>
+        </a>
+
+        <nav className="desktop-nav" aria-label="Main navigation">
+          <a className="active" href="#dashboard">
+            Dashboard
+          </a>
+          <a href="#projects">Projects</a>
+          <a href="#activity">Activity</a>
+        </nav>
+
+        <button className="wallet-button" type="button">
+          Connect wallet
         </button>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
+      <main>
+        <section className="hero" id="dashboard">
+          <div>
+            <span className="network-badge">
+              <span className="status-dot" />
+              Stellar Testnet
+            </span>
+            <p className="eyebrow">Milestone-based payments</p>
+            <h1>Build trust into every freelance payment.</h1>
+            <p className="hero-copy">
+              Lock project funds in escrow, approve completed milestones, and
+              release payments securely through a Soroban smart contract.
+            </p>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
+            <div className="hero-actions">
+              <button className="primary-button" type="button">
+                Create project
+              </button>
+              <a className="secondary-button" href="#projects">
+                View projects
               </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+            </div>
+          </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+          <aside className="escrow-card" aria-label="Escrow workflow">
+            <p className="card-label">Secure workflow</p>
+            <ol className="workflow-list">
+              <li>
+                <span>1</span>
+                <div>
+                  <strong>Create milestones</strong>
+                  <p>Define deliverables, deadlines, and payment amounts.</p>
+                </div>
+              </li>
+              <li>
+                <span>2</span>
+                <div>
+                  <strong>Fund escrow</strong>
+                  <p>Lock the agreed asset inside the Soroban contract.</p>
+                </div>
+              </li>
+              <li>
+                <span>3</span>
+                <div>
+                  <strong>Approve and release</strong>
+                  <p>Pay the freelancer when milestone work is approved.</p>
+                </div>
+              </li>
+            </ol>
+          </aside>
+        </section>
+
+        <section className="stats-grid" aria-label="Dashboard summary">
+          {stats.map((stat) => (
+            <article className="stat-card" key={stat.label}>
+              <p>{stat.label}</p>
+              <strong>{stat.value}</strong>
+              <span>{stat.detail}</span>
+            </article>
+          ))}
+        </section>
+
+        <section className="projects-section" id="projects">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Your workspace</p>
+              <h2>Recent projects</h2>
+            </div>
+            <button className="text-button" type="button">
+              View all
+            </button>
+          </div>
+
+          <div className="project-grid">
+            {projects.map((project) => (
+              <article className="project-card" key={project.id}>
+                <div className="project-card-header">
+                  <span className={`project-status ${project.status.toLowerCase()}`}>
+                    {project.status}
+                  </span>
+                  <span className="project-role">{project.role}</span>
+                </div>
+
+                <h3>{project.title}</h3>
+                <p className="wallet-reference">
+                  Freelancer: {project.freelancer}
+                </p>
+
+                <div className="progress-copy">
+                  <span>Milestone progress</span>
+                  <strong>{project.progress}%</strong>
+                </div>
+                <div
+                  className="progress-track"
+                  role="progressbar"
+                  aria-valuenow={project.progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <span style={{ width: `${project.progress}%` }} />
+                </div>
+
+                <div className="project-footer">
+                  <div>
+                    <span>Escrow value</span>
+                    <strong>{project.amount}</strong>
+                  </div>
+                  <button type="button">Open project</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <span>Stellar Milestone Escrow</span>
+        <span>Built on Stellar · Testnet MVP</span>
+      </footer>
+    </div>
+  );
 }
 
-export default App
+export default App;
