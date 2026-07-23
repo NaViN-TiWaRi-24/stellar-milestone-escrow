@@ -407,6 +407,33 @@ impl MilestoneEscrowContract {
 
         Ok(project)
     }
+    pub fn cancel_project(
+        env: Env,
+        project_id: u64,
+        client: Address,
+    ) -> Result<Project, EscrowError> {
+        client.require_auth();
+
+        let key = DataKey::Project(project_id);
+        let mut project: Project = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::ProjectNotFound)?;
+
+        if project.client != client {
+            return Err(EscrowError::Unauthorized);
+        }
+
+        if project.status != ProjectStatus::Created && project.status != ProjectStatus::Accepted {
+            return Err(EscrowError::InvalidProjectState);
+        }
+
+        project.status = ProjectStatus::Cancelled;
+        env.storage().persistent().set(&key, &project);
+
+        Ok(project)
+    }
     pub fn hello(env: Env, to: String) -> Vec<String> {
         vec![&env, String::from_str(&env, "Hello"), to]
     }

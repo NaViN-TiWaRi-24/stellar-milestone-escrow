@@ -301,3 +301,25 @@ fn approved_milestone_payment_is_released_to_freelancer() {
     assert_eq!(token_client.balance(&freelancer), 400);
     assert_eq!(token_client.balance(&contract_id), 600);
 }
+#[test]
+fn client_cancels_unfunded_project() {
+    let (env, contract_id, client_address, freelancer, asset) = setup();
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Website Project"),
+        &1_000,
+        &milestones,
+    );
+
+    let cancelled_project = contract.cancel_project(&project_id, &client_address);
+
+    assert_eq!(cancelled_project.status, ProjectStatus::Cancelled);
+
+    let stored_project = contract.get_project(&project_id);
+    assert_eq!(stored_project.status, ProjectStatus::Cancelled);
+}
