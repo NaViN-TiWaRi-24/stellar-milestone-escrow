@@ -248,3 +248,56 @@ fn client_approves_submitted_milestone() {
         MilestoneStatus::Approved
     );
 }
+#[test]
+fn approved_milestone_payment_is_released_to_freelancer() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(MilestoneEscrowContract, ());
+    let client_address = Address::generate(&env);
+    let freelancer = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let asset = token_contract.address();
+
+    let token_admin_client = token::StellarAssetClient::new(&env, &asset);
+    let token_client = token::Client::new(&env, &asset);
+    token_admin_client.mint(&client_address, &1_000);
+
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let milestones = sample_milestones(&env);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Website Project"),
+        &1_000,
+        &milestones,
+    );
+
+    contract.accept_project(&project_id, &freelancer);
+    contract.fund_project(&project_id, &client_address);
+
+    contract.submit_milestone(
+        &project_id,
+        &0,
+        &freelancer,
+        &String::from_str(&env, "https://example.com/design"),
+    );
+
+    contract.approve_milestone(&project_id, &0, &client_address);
+
+    let updated_project = contract.release_milestone_payment(&project_id, &0, &client_address);
+
+    assert_eq!(updated_project.released_amount, 400);
+    assert_eq!(updated_project.status, ProjectStatus::Active);
+    assert_eq!(
+        updated_project.milestones.get(0).unwrap().status,
+        MilestoneStatus::Paid
+    );
+
+    assert_eq!(token_client.balance(&freelancer), 400);
+    assert_eq!(token_client.balance(&contract_id), 600);
+}

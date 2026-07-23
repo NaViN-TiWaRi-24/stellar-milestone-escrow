@@ -82,6 +82,8 @@ pub enum EscrowError {
     AlreadyPaid = 10,
     MilestoneNotFound = 11,
     EmptyWorkReference = 12,
+    InsufficientEscrow = 13,
+    ArithmeticOverflow = 14,
 }
 
 #[contract]
@@ -327,6 +329,81 @@ impl MilestoneEscrowContract {
         project.milestones.set(milestone_id, milestone);
 
         env.storage().persistent().set(&key, &project);
+
+        Ok(project)
+    }
+    pub fn release_milestone_payment(
+        env: Env,
+        project_id: u64,
+        milestone_id: u32,
+        client: Address,
+    ) -> Result<Project, EscrowError> {
+        client.require_auth();
+
+        let key = DataKey::Project(project_id);
+        let mut project: Project = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::ProjectNotFound)?;
+
+        if project.client != client {
+            return Err(EscrowError::Unauthorized);
+        }
+
+        if project.status != ProjectStatus::Active {
+            return Err(EscrowError::InvalidProjectState);
+        }
+
+        let mut milestone = project
+            .milestones
+            .get(milestone_id)
+            .ok_or(EscrowError::MilestoneNotFound)?;
+
+        if milestone.status == MilestoneStatus::Paid {
+            return Err(EscrowError::AlreadyPaid);
+        }
+
+        if milestone.status != MilestoneStatus::Approved {
+            return Err(EscrowError::InvalidMilestoneState);
+        }
+
+        let new_released_amount = project
+            .released_amount
+            .checked_add(milestone.amount)
+            .ok_or(EscrowError::ArithmeticOverflow)?;
+
+        if new_released_amount > project.escrowed_amount {
+            return Err(EscrowError::InsufficientEscrow);
+        }
+
+        milestone.status = MilestoneStatus::Paid;
+        project.milestones.set(milestone_id, milestone.clone());
+        project.released_amount = new_released_amount;
+
+        let mut all_paid = true;
+
+        for stored_milestone in project.milestones.iter() {
+            if stored_milestone.status != MilestoneStatus::Paid {
+                all_paid = false;
+                break;
+            }
+        }
+
+        project.status = if all_paid {
+            ProjectStatus::Completed
+        } else {
+            ProjectStatus::Active
+        };
+
+        env.storage().persistent().set(&key, &project);
+
+        let token_client = token::Client::new(&env, &project.asset);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &project.freelancer,
+            &milestone.amount,
+        );
 
         Ok(project)
     }
