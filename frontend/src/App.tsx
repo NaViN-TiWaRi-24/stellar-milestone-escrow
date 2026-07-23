@@ -6,32 +6,14 @@ import {
   shortenAddress,
   type WalletSession,
 } from "./lib/wallet";
+import type { Project } from "milestone-escrow";
+import { getUserProjects } from "./lib/escrow";
 
-const projects = [
-  {
-    id: 1,
-    title: "Landing Page Design",
-    role: "Client",
-    freelancer: "GCFX...8Q2P",
-    progress: 65,
-    amount: "1,000 USDC",
-    status: "Active",
-  },
-  {
-    id: 2,
-    title: "Mobile App Development",
-    role: "Freelancer",
-    freelancer: "You",
-    progress: 30,
-    amount: "2,500 USDC",
-    status: "Funded",
-  },
-];
 
 const stats = [
-  { label: "Active projects", value: "2", detail: "1 as client · 1 as freelancer" },
-  { label: "Funds in escrow", value: "3,500", detail: "USDC on Stellar Testnet" },
-  { label: "Released payments", value: "400", detail: "Across completed milestones" },
+  { label: "Active projects" },
+  { label: "Funds in escrow" },
+  { label: "Released payments" },
 ];
 
 function App() {
@@ -40,6 +22,70 @@ function App() {
     "restoring" | "idle" | "connecting"
   >("restoring");
   const [walletError, setWalletError] = useState<string | null>(null);
+ const [userProjects, setUserProjects] = useState<Project[]>([]);
+const [projectsStatus, setProjectsStatus] = useState<
+  "idle" | "loading" | "success" | "error"
+>("idle");
+const [projectsError, setProjectsError] = useState<string | null>(null);
+  const totalEscrowed = userProjects.reduce(
+    (total, project) => total + project.escrowed_amount,
+    0n,
+  );
+
+  const totalReleased = userProjects.reduce(
+    (total, project) => total + project.released_amount,
+    0n,
+  );
+
+  function getStatValue(label: string): string {
+    if (!wallet) {
+      return "—";
+    }
+
+    if (projectsStatus === "loading") {
+      return "...";
+    }
+
+    if (projectsStatus === "error") {
+      return "!";
+    }
+
+    if (label === "Active projects") {
+      return userProjects.length.toString();
+    }
+
+    if (label === "Funds in escrow") {
+      return totalEscrowed.toLocaleString();
+    }
+
+    return totalReleased.toLocaleString();
+  }
+
+  function getStatDetail(label: string): string {
+    if (!wallet) {
+      return "Connect your wallet to load on-chain data";
+    }
+
+    if (projectsStatus === "loading") {
+      return "Loading from Stellar Testnet...";
+    }
+
+    if (projectsStatus === "error") {
+      return projectsError ?? "Unable to load contract data";
+    }
+
+    if (label === "Active projects") {
+      return `${userProjects.length} project${
+        userProjects.length === 1 ? "" : "s"
+      } found on-chain`;
+    }
+
+    if (label === "Funds in escrow") {
+      return "Total token units currently locked";
+    }
+
+    return "Total token units released to freelancers";
+  }
 
   useEffect(() => {
     let isActive = true;
@@ -64,6 +110,45 @@ function App() {
       isActive = false;
     };
   }, []);
+
+    useEffect(() => {
+    if (!wallet) {
+      return;
+    }
+
+    let isActive = true;
+    const walletAddress = wallet.address;
+
+    setProjectsStatus("loading");
+    setProjectsError(null);
+
+    async function loadWalletProjects() {
+      try {
+        const projects = await getUserProjects(walletAddress);
+
+        if (isActive) {
+          setUserProjects(projects);
+          setProjectsStatus("success");
+        }
+      } catch (error) {
+        if (isActive) {
+          setUserProjects([]);
+          setProjectsStatus("error");
+          setProjectsError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load projects from Stellar Testnet.",
+          );
+        }
+      }
+    }
+
+    void loadWalletProjects();
+
+    return () => {
+      isActive = false;
+    };
+  }, [wallet]);
 
   async function handleWalletConnect() {
     setWalletStatus("connecting");
@@ -186,12 +271,12 @@ function App() {
 
         <section className="stats-grid" aria-label="Dashboard summary">
           {stats.map((stat) => (
-            <article className="stat-card" key={stat.label}>
-              <p>{stat.label}</p>
-              <strong>{stat.value}</strong>
-              <span>{stat.detail}</span>
-            </article>
-          ))}
+  <article className="stat-card" key={stat.label}>
+    <p>{stat.label}</p>
+    <strong>{getStatValue(stat.label)}</strong>
+    <span>{getStatDetail(stat.label)}</span>
+  </article>
+))}
         </section>
 
         <section className="projects-section" id="projects">
@@ -206,44 +291,97 @@ function App() {
           </div>
 
           <div className="project-grid">
-            {projects.map((project) => (
-              <article className="project-card" key={project.id}>
-                <div className="project-card-header">
-                  <span className={`project-status ${project.status.toLowerCase()}`}>
-                    {project.status}
-                  </span>
-                  <span className="project-role">{project.role}</span>
-                </div>
+  {!wallet && (
+    <div className="projects-empty">
+      <strong>Connect your wallet</strong>
+      <p>Your Stellar Testnet projects will appear here.</p>
+    </div>
+  )}
 
-                <h3>{project.title}</h3>
-                <p className="wallet-reference">
-                  Freelancer: {project.freelancer}
-                </p>
+  {wallet && projectsStatus === "loading" && (
+    <div className="projects-empty" role="status">
+      <strong>Loading projects...</strong>
+      <p>Reading your project records from Stellar Testnet.</p>
+    </div>
+  )}
 
-                <div className="progress-copy">
-                  <span>Milestone progress</span>
-                  <strong>{project.progress}%</strong>
-                </div>
-                <div
-                  className="progress-track"
-                  role="progressbar"
-                  aria-valuenow={project.progress}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                >
-                  <span style={{ width: `${project.progress}%` }} />
-                </div>
+  {wallet && projectsStatus === "error" && (
+    <div className="projects-empty error" role="alert">
+      <strong>Projects could not be loaded</strong>
+      <p>{projectsError}</p>
+    </div>
+  )}
 
-                <div className="project-footer">
-                  <div>
-                    <span>Escrow value</span>
-                    <strong>{project.amount}</strong>
-                  </div>
-                  <button type="button">Open project</button>
-                </div>
-              </article>
-            ))}
+  {wallet &&
+    projectsStatus === "success" &&
+    userProjects.length === 0 && (
+      <div className="projects-empty">
+        <strong>No projects yet</strong>
+        <p>Create your first milestone escrow project to get started.</p>
+      </div>
+    )}
+
+  {wallet &&
+    projectsStatus === "success" &&
+    userProjects.map((project) => {
+      const paidMilestones = project.milestones.filter(
+        (milestone) => milestone.status.tag === "Paid",
+      ).length;
+
+      const progress =
+        project.milestones.length === 0
+          ? 0
+          : Math.round(
+              (paidMilestones / project.milestones.length) * 100,
+            );
+
+      const role =
+        project.client === wallet.address ? "Client" : "Freelancer";
+
+      return (
+        <article className="project-card" key={project.id.toString()}>
+          <div className="project-card-header">
+            <span
+              className={`project-status ${project.status.tag.toLowerCase()}`}
+            >
+              {project.status.tag}
+            </span>
+            <span className="project-role">{role}</span>
           </div>
+
+          <h3>{project.title}</h3>
+          <p className="wallet-reference">
+            Freelancer: {shortenAddress(project.freelancer)}
+          </p>
+
+          <div className="progress-copy">
+            <span>Paid milestone progress</span>
+            <strong>{progress}%</strong>
+          </div>
+
+          <div
+            className="progress-track"
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <span style={{ width: `${progress}%` }} />
+          </div>
+
+          <div className="project-footer">
+            <div>
+              <span>Total contract amount</span>
+              <strong>
+                {project.total_amount.toLocaleString()} token units
+              </strong>
+            </div>
+            <button type="button">Open project</button>
+          </div>
+        </article>
+      );
+    })}
+</div>
         </section>
       </main>
 
