@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractevent, contractimpl, contracttype, token, vec, Address, Env,
+    contract, contracterror, contractevent, contractimpl, contracttype, token, Address, Env,
     String, Vec,
 };
 
@@ -664,9 +664,6 @@ impl MilestoneEscrowContract {
         .publish(&env);
 
         Ok(project)
-    }
-    pub fn hello(env: Env, to: String) -> Vec<String> {
-        vec![&env, String::from_str(&env, "Hello"), to]
     }
 }
 
