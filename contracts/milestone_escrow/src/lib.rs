@@ -5,6 +5,13 @@ use soroban_sdk::{
     String, Vec,
 };
 
+/// Soroban Testnet targets roughly one ledger close every five seconds.
+const LEDGERS_PER_DAY: u32 = 17_280;
+/// Renew entries once fewer than 30 days remain.
+const TTL_RENEWAL_THRESHOLD_LEDGERS: u32 = 30 * LEDGERS_PER_DAY;
+/// Keep active escrow data alive for approximately 180 days.
+const ESCROW_TTL_LEDGERS: u32 = 180 * LEDGERS_PER_DAY;
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProjectStatus {
@@ -165,6 +172,37 @@ pub struct ProjectRefunded {
 #[contract]
 pub struct MilestoneEscrowContract;
 
+fn renew_instance_ttl(env: &Env) {
+    // Instance storage has one shared TTL, so this renews NextProjectId together
+    // with the contract instance and its executable code.
+    env.storage()
+        .instance()
+        .extend_ttl(TTL_RENEWAL_THRESHOLD_LEDGERS, ESCROW_TTL_LEDGERS);
+}
+
+fn renew_project_ttl(env: &Env, project: &Project) {
+    let project_key = DataKey::Project(project.id);
+    let client_projects_key = DataKey::UserProjects(project.client.clone());
+    let freelancer_projects_key = DataKey::UserProjects(project.freelancer.clone());
+
+    env.storage().persistent().extend_ttl(
+        &project_key,
+        TTL_RENEWAL_THRESHOLD_LEDGERS,
+        ESCROW_TTL_LEDGERS,
+    );
+    env.storage().persistent().extend_ttl(
+        &client_projects_key,
+        TTL_RENEWAL_THRESHOLD_LEDGERS,
+        ESCROW_TTL_LEDGERS,
+    );
+    env.storage().persistent().extend_ttl(
+        &freelancer_projects_key,
+        TTL_RENEWAL_THRESHOLD_LEDGERS,
+        ESCROW_TTL_LEDGERS,
+    );
+    renew_instance_ttl(env);
+}
+
 #[contractimpl]
 impl MilestoneEscrowContract {
     // Temporary function retained only while the real escrow functions are added.
@@ -274,6 +312,7 @@ impl MilestoneEscrowContract {
         env.storage()
             .instance()
             .set(&DataKey::NextProjectId, &(project_id + 1));
+        renew_project_ttl(&env, &project);
 
         ProjectCreated {
             project_id,
@@ -320,6 +359,7 @@ impl MilestoneEscrowContract {
 
         project.status = ProjectStatus::Accepted;
         env.storage().persistent().set(&key, &project);
+        renew_project_ttl(&env, &project);
         ProjectAccepted {
             project_id,
             freelancer,
@@ -363,6 +403,7 @@ impl MilestoneEscrowContract {
             &env.current_contract_address(),
             &project.total_amount,
         );
+        renew_project_ttl(&env, &project);
 
         ProjectFunded {
             project_id,
@@ -417,6 +458,7 @@ impl MilestoneEscrowContract {
         project.status = ProjectStatus::Active;
 
         env.storage().persistent().set(&key, &project);
+        renew_project_ttl(&env, &project);
 
         MilestoneSubmitted {
             project_id,
@@ -463,6 +505,7 @@ impl MilestoneEscrowContract {
         project.milestones.set(milestone_id, milestone);
 
         env.storage().persistent().set(&key, &project);
+        renew_project_ttl(&env, &project);
 
         MilestoneApproved {
             project_id,
@@ -544,6 +587,7 @@ impl MilestoneEscrowContract {
             &project.freelancer,
             &milestone.amount,
         );
+        renew_project_ttl(&env, &project);
 
         MilestonePaid {
             project_id,
@@ -579,6 +623,7 @@ impl MilestoneEscrowContract {
 
         project.status = ProjectStatus::Cancelled;
         env.storage().persistent().set(&key, &project);
+        renew_project_ttl(&env, &project);
 
         ProjectCancelled { project_id, client }.publish(&env);
         Ok(project)
@@ -611,6 +656,7 @@ impl MilestoneEscrowContract {
 
         project.status = ProjectStatus::RefundRequested;
         env.storage().persistent().set(&key, &project);
+        renew_project_ttl(&env, &project);
 
         RefundRequested { project_id, client }.publish(&env);
         Ok(project)
@@ -655,6 +701,7 @@ impl MilestoneEscrowContract {
             &project.client,
             &refund_amount,
         );
+        renew_project_ttl(&env, &project);
 
         ProjectRefunded {
             project_id,

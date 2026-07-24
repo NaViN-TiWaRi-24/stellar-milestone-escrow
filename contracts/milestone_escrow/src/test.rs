@@ -1,10 +1,16 @@
 #![cfg(test)]
 
 use super::{
-    EscrowError, MilestoneEscrowContract, MilestoneEscrowContractClient, MilestoneInput,
-    MilestoneStatus, ProjectStatus,
+    DataKey, EscrowError, MilestoneEscrowContract, MilestoneEscrowContractClient, MilestoneInput,
+    MilestoneStatus, ProjectStatus, ESCROW_TTL_LEDGERS, TTL_RENEWAL_THRESHOLD_LEDGERS,
 };
-use soroban_sdk::{testutils::Address as _, token, vec, Address, Env, String};
+use soroban_sdk::{
+    testutils::{
+        storage::{Instance as _, Persistent as _},
+        Address as _, Ledger as _,
+    },
+    token, vec, Address, Env, String,
+};
 
 fn setup() -> (Env, Address, Address, Address, Address) {
     let env = Env::default();
@@ -32,6 +38,85 @@ fn sample_milestones(env: &Env) -> soroban_sdk::Vec<MilestoneInput> {
             deadline: 200,
         },
     ]
+}
+
+fn assert_project_storage_ttl(
+    env: &Env,
+    contract_id: &Address,
+    project_id: u64,
+    client: &Address,
+    freelancer: &Address,
+) {
+    env.as_contract(contract_id, || {
+        assert!(env.storage().instance().has(&DataKey::NextProjectId));
+        assert!(env.storage().instance().get_ttl() >= ESCROW_TTL_LEDGERS - 1);
+        assert!(
+            env.storage()
+                .persistent()
+                .get_ttl(&DataKey::Project(project_id))
+                >= ESCROW_TTL_LEDGERS - 1
+        );
+        assert!(
+            env.storage()
+                .persistent()
+                .get_ttl(&DataKey::UserProjects(client.clone()))
+                >= ESCROW_TTL_LEDGERS - 1
+        );
+        assert!(
+            env.storage()
+                .persistent()
+                .get_ttl(&DataKey::UserProjects(freelancer.clone()))
+                >= ESCROW_TTL_LEDGERS - 1
+        );
+    });
+}
+
+#[test]
+fn creation_extends_project_indexes_and_instance_ttl() {
+    let (env, contract_id, client_address, freelancer, asset) = setup();
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Long-lived Project"),
+        &1_000,
+        &sample_milestones(&env),
+    );
+
+    assert_project_storage_ttl(&env, &contract_id, project_id, &client_address, &freelancer);
+}
+
+#[test]
+fn funding_renews_project_indexes_and_instance_ttl() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(MilestoneEscrowContract, ());
+    let client_address = Address::generate(&env);
+    let freelancer = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let asset = token_contract.address();
+    token::StellarAssetClient::new(&env, &asset).mint(&client_address, &1_000);
+
+    let contract = MilestoneEscrowContractClient::new(&env, &contract_id);
+    let project_id = contract.create_project(
+        &client_address,
+        &freelancer,
+        &asset,
+        &String::from_str(&env, "Funded Project"),
+        &1_000,
+        &sample_milestones(&env),
+    );
+    contract.accept_project(&project_id, &freelancer);
+
+    env.ledger()
+        .set_sequence_number(ESCROW_TTL_LEDGERS - TTL_RENEWAL_THRESHOLD_LEDGERS + 1);
+    contract.fund_project(&project_id, &client_address);
+
+    assert_project_storage_ttl(&env, &contract_id, project_id, &client_address, &freelancer);
 }
 
 #[test]
