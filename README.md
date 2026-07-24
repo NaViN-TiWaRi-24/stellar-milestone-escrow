@@ -47,15 +47,15 @@ React + TypeScript Frontend
 
 ```text
 stellar-milestone-escrow/
-├── contracts/
-│   └── milestone_escrow/
-│       ├── src/
-│       │   ├── lib.rs
-│       │   └── test.rs
-│       └── Cargo.toml
-├── Cargo.toml
-├── Cargo.lock
-└── README.md
+â”œâ”€â”€ contracts/
+â”‚   â””â”€â”€ milestone_escrow/
+â”‚       â”œâ”€â”€ src/
+â”‚       â”‚   â”œâ”€â”€ lib.rs
+â”‚       â”‚   â””â”€â”€ test.rs
+â”‚       â””â”€â”€ Cargo.toml
+â”œâ”€â”€ Cargo.toml
+â”œâ”€â”€ Cargo.lock
+â””â”€â”€ README.md
 ```
 
 The React frontend, continuous integration, analytics, monitoring, deployment evidence, and user-testing documents will be added during development.
@@ -110,13 +110,13 @@ Developed for the Stellar Journey to Mastery Level 4 Green Belt challenge.
 
 The Milestone Escrow Soroban contract is deployed on Stellar Testnet.
 
-- **Contract ID:** `CAF4T5XILTB4FMCCCN63K5CVMMZEXIPR54GPFGVGOCFMXDHQW3QBHDRL`
+- **Contract ID:** `CCQGR5ASUDD5BBOWPVU5TNXUH675HSRFHXGWNFT4CPXVQMFZFKX5V2ET`
 - **Network:** Stellar Testnet
-- **Optimized WASM size:** 15,503 bytes
+- **Optimized WASM size:** 15,651 bytes
 - **Contract functions:** 11
-- **WASM upload transaction:** [`000f05e8...690ac`](https://stellar.expert/explorer/testnet/tx/000f05e82d1ddfcf051027e0c89715a2b7eeac95278bfd351245fe87bff690ac)
-- **Deployment transaction:** [`9a01d1a9...60826`](https://stellar.expert/explorer/testnet/tx/9a01d1a959067874b5e69382a243dd47ae8d4fbed9f293615f22080b75560826)
-- **Contract explorer:** [Open in Stellar Lab](https://lab.stellar.org/r/testnet/contract/CAF4T5XILTB4FMCCCN63K5CVMMZEXIPR54GPFGVGOCFMXDHQW3QBHDRL)
+- **WASM upload transaction:** [`7d8d88b5...5421f3`](https://stellar.expert/explorer/testnet/tx/7d8d88b54095c1762ebcf851e6a785ab5e6f930fd6a237cc219fe4e35e5421f3)
+- **Deployment transaction:** [`7963edad...c5419`](https://stellar.expert/explorer/testnet/tx/7963edad073d903f96a330e8a069191915b2cc1064dc07d3b64a14235bbc5419)
+- **Contract explorer:** [Open in Stellar Lab](https://lab.stellar.org/r/testnet/contract/CCQGR5ASUDD5BBOWPVU5TNXUH675HSRFHXGWNFT4CPXVQMFZFKX5V2ET)
 
 The deployment is for testing only and does not use real funds.
 
@@ -149,7 +149,7 @@ connection and the main escrow lifecycle actions.
 
 The frontend uses Vercel Web Analytics for aggregate product events and Sentry
 for runtime and handled-operation monitoring. Analytics events contain only a
-fixed event name—never wallet addresses, transaction hashes, project titles,
+fixed event nameâ€”never wallet addresses, transaction hashes, project titles,
 amounts, work references, errors, or form values. Sentry receives only a
 generic message with the action, `network=testnet`, and a broad error category;
 default personally identifiable information and request/user payloads are
@@ -169,5 +169,5 @@ Without a DSN the application operates normally with monitoring disabled.
 
 After deploying to Vercel, Web Analytics must also be enabled for the project in
 the Vercel dashboard. Sentry requires a browser project and its DSN configured
-in the deployment environment; review the Sentry project’s retention and access
+in the deployment environment; review the Sentry projectâ€™s retention and access
 settings before enabling it.
