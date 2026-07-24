@@ -13,6 +13,7 @@ import {
   type WriteTransactionStatus,
 } from "../lib/escrow";
 import { shortenAddress } from "../lib/wallet";
+import { formatTokenAmount } from "../lib/amounts";
 import "./ProjectDetailsModal.css";
 
 type Props = {
@@ -29,26 +30,10 @@ type ActionStatus =
   | "rejected"
   | "failed";
 
-const STROOPS_PER_XLM = 10_000_000n;
 const xlmSacId = import.meta.env.VITE_XLM_SAC_ID as string | undefined;
 const explorerBaseUrl =
   import.meta.env.VITE_STELLAR_EXPLORER_URL ??
   "https://stellar.expert/explorer/testnet";
-
-function formatXlm(stroops: bigint): string {
-  const sign = stroops < 0n ? "-" : "";
-  const absolute = stroops < 0n ? -stroops : stroops;
-  const whole = absolute / STROOPS_PER_XLM;
-  const fraction = (absolute % STROOPS_PER_XLM)
-    .toString()
-    .padStart(7, "0")
-    .replace(/0+$/, "");
-  return `${sign}${whole}${fraction ? `.${fraction}` : ""} XLM`;
-}
-
-function formatTokenAmount(amount: bigint, isNativeXlm: boolean): string {
-  return isNativeXlm ? formatXlm(amount) : `${amount.toString()} token units`;
-}
 
 function formatDeadline(timestamp: bigint): string {
   const milliseconds = timestamp * 1000n;
@@ -377,7 +362,7 @@ export function ProjectDetailsModal({
           </div>
         </section>
 
-        {(isClient || isFreelancer) && (
+        {(isClient || isFreelancer) && projectStatus !== "Completed" && (
           <section className="details-section project-actions">
             <h3>Available project actions</h3>
             <div className="project-action-buttons">

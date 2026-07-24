@@ -11,6 +11,7 @@ import {
   createProject,
   type CreateProjectReceipt,
 } from "../lib/escrow";
+import { xlmToStroops } from "../lib/amounts";
 import "./CreateProjectModal.css";
 
 type TransactionStatus =
@@ -57,17 +58,6 @@ const xlmSacId = import.meta.env.VITE_XLM_SAC_ID as string | undefined;
 
 function newMilestone(key: number): MilestoneDraft {
   return { key, title: "", amount: "", deadline: "" };
-}
-
-function xlmToStroops(value: string): bigint | null {
-  const match = /^(\d+)(?:\.(\d{1,7}))?$/.exec(value.trim());
-  if (!match) {
-    return null;
-  }
-
-  const whole = BigInt(match[1]);
-  const fractional = (match[2] ?? "").padEnd(7, "0");
-  return whole * STROOPS_PER_XLM + BigInt(fractional || "0");
 }
 
 function friendlyTransactionError(error: unknown): {
