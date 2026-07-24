@@ -119,3 +119,30 @@ The Milestone Escrow Soroban contract is deployed on Stellar Testnet.
 - **Contract explorer:** [Open in Stellar Lab](https://lab.stellar.org/r/testnet/contract/CAF4T5XILTB4FMCCCN63K5CVMMZEXIPR54GPFGVGOCFMXDHQW3QBHDRL)
 
 The deployment is for testing only and does not use real funds.
+
+## Privacy-safe analytics and monitoring
+
+The frontend uses Vercel Web Analytics for aggregate product events and Sentry
+for runtime and handled-operation monitoring. Analytics events contain only a
+fixed event name—never wallet addresses, transaction hashes, project titles,
+amounts, work references, errors, or form values. Sentry receives only a
+generic message with the action, `network=testnet`, and a broad error category;
+default personally identifiable information and request/user payloads are
+disabled.
+
+Set these frontend environment variables when monitoring is required:
+
+```env
+VITE_SENTRY_DSN=
+VITE_SENTRY_ENABLE_DEV=false
+```
+
+`VITE_SENTRY_DSN` should be configured securely in the deployment environment,
+not committed. Monitoring initializes in production when the DSN is present.
+Set `VITE_SENTRY_ENABLE_DEV=true` only for deliberate development testing.
+Without a DSN the application operates normally with monitoring disabled.
+
+After deploying to Vercel, Web Analytics must also be enabled for the project in
+the Vercel dashboard. Sentry requires a browser project and its DSN configured
+in the deployment environment; review the Sentry project’s retention and access
+settings before enabling it.

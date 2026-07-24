@@ -14,6 +14,12 @@ import {
 } from "../lib/escrow";
 import { shortenAddress } from "../lib/wallet";
 import { formatTokenAmount } from "../lib/amounts";
+import {
+  captureOperationalError,
+  trackProductEvent,
+  type MonitoredAction,
+  type ProductEvent,
+} from "../lib/telemetry";
 import "./ProjectDetailsModal.css";
 
 type Props = {
@@ -220,6 +226,8 @@ export function ProjectDetailsModal({
   async function performAction(
     action: () => Promise<ProjectWriteReceipt>,
     successMessage: string,
+    monitoredAction: MonitoredAction,
+    successEvent?: ProductEvent,
   ) {
     if (pendingRef.current) return;
     setTransactionHash(null);
@@ -231,7 +239,11 @@ export function ProjectDetailsModal({
       setStatus("success");
       setStatusMessage(successMessage);
       setFundConfirmation(false);
+      if (successEvent) {
+        trackProductEvent(successEvent);
+      }
     } catch (error) {
+      captureOperationalError(monitoredAction, error);
       const friendly = actionError(error);
       setStatus(friendly.status);
       setStatusMessage(friendly.message);
@@ -260,6 +272,8 @@ export function ProjectDetailsModal({
           trackStatus,
         ),
       "Work reference submitted successfully.",
+      "milestone_submit",
+      "milestone_submit_success",
     );
   }
 
@@ -379,6 +393,8 @@ export function ProjectDetailsModal({
                           trackStatus,
                         ),
                       "Project accepted successfully.",
+                      "project_accept",
+                      "project_accept_success",
                     )
                   }
                 >
@@ -399,6 +415,8 @@ export function ProjectDetailsModal({
                             trackStatus,
                           ),
                         "Refund approved successfully.",
+                        "refund_approve",
+                        "refund_approve_success",
                       )
                     }
                   >
@@ -420,6 +438,7 @@ export function ProjectDetailsModal({
                             trackStatus,
                           ),
                         "Project cancelled successfully.",
+                        "project_cancel",
                       )
                     }
                   >
@@ -451,6 +470,8 @@ export function ProjectDetailsModal({
                             trackStatus,
                           ),
                         "Refund requested successfully.",
+                        "refund_request",
+                        "refund_request_success",
                       )
                     }
                   >
@@ -487,6 +508,8 @@ export function ProjectDetailsModal({
                             trackStatus,
                           ),
                         "Escrow funded successfully.",
+                        "project_fund",
+                        "project_fund_success",
                       )
                     }
                   >
@@ -591,6 +614,8 @@ export function ProjectDetailsModal({
                               trackStatus,
                             ),
                           "Milestone approved successfully.",
+                          "milestone_approve",
+                          "milestone_approve_success",
                         )
                       }
                     >
@@ -612,6 +637,8 @@ export function ProjectDetailsModal({
                               trackStatus,
                             ),
                           "Milestone payment released successfully.",
+                          "milestone_release",
+                          "milestone_release_success",
                         )
                       }
                     >

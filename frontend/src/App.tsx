@@ -10,6 +10,10 @@ import type { Project } from "milestone-escrow";
 import { getUserProjects } from "./lib/escrow";
 import { CreateProjectModal } from "./components/CreateProjectModal";
 import { ProjectDetailsModal } from "./components/ProjectDetailsModal";
+import {
+  captureOperationalError,
+  trackProductEvent,
+} from "./lib/telemetry";
 
 
 const stats = [
@@ -140,6 +144,7 @@ const [projectsError, setProjectsError] = useState<string | null>(null);
         }
       } catch (error) {
         if (isActive) {
+          captureOperationalError("load_projects", error);
           setUserProjects([]);
           setProjectsStatus("error");
           setProjectsError(
@@ -165,7 +170,10 @@ const [projectsError, setProjectsError] = useState<string | null>(null);
     try {
       const session = await connectWallet();
       setWallet(session);
+      trackProductEvent("wallet_connect_success");
     } catch (error) {
+      trackProductEvent("wallet_connect_failed");
+      captureOperationalError("wallet_connect", error);
       setWalletError(
         error instanceof Error
           ? error.message
@@ -404,7 +412,10 @@ const [projectsError, setProjectsError] = useState<string | null>(null);
             </div>
             <button
               type="button"
-              onClick={() => setSelectedProject(project)}
+              onClick={() => {
+                setSelectedProject(project);
+                trackProductEvent("project_opened");
+              }}
             >
               Open project
             </button>

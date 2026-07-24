@@ -1,0 +1,57 @@
+.app-error-fallback {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  background: var(--background);
+}
+
+.app-error-fallback > div {
+  width: min(620px, 100%);
+  padding: clamp(24px, 5vw, 42px);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.app-error-fallback h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  letter-spacing: -0.04em;
+}
+
+.app-error-fallback p:not(.eyebrow) {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.app-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.app-error-actions button {
+  min-height: 44px;
+  padding: 0 17px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+  color: var(--primary);
+  font-weight: 750;
+}
+
+.app-error-actions button:first-child {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: white;
+}
+
+@media (max-width: 440px) {
+  .app-error-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

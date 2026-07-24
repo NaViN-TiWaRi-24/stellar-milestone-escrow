@@ -12,6 +12,10 @@ import {
   type CreateProjectReceipt,
 } from "../lib/escrow";
 import { xlmToStroops } from "../lib/amounts";
+import {
+  captureOperationalError,
+  trackProductEvent,
+} from "../lib/telemetry";
 import "./CreateProjectModal.css";
 
 type TransactionStatus =
@@ -324,8 +328,11 @@ export function CreateProjectModal({
       setReceipt(result);
       setStatus("success");
       setStatusMessage("Your project was created on Stellar Testnet.");
+      trackProductEvent("project_create_success");
       await onCreated();
     } catch (error) {
+      trackProductEvent("project_create_failed");
+      captureOperationalError("project_create", error);
       const friendlyError = friendlyTransactionError(error);
       setStatus(friendlyError.status);
       setStatusMessage(friendlyError.message);
