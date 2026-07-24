@@ -120,6 +120,31 @@ The Milestone Escrow Soroban contract is deployed on Stellar Testnet.
 
 The deployment is for testing only and does not use real funds.
 
+## User Testing and Feedback
+
+Three real testers participated: two freelancers and one general visitor. All
+three tested the dashboard and project details, while two tested wallet
+connection and the main escrow lifecycle actions.
+
+- All testers rated ease of use 5/5.
+- 100% said the escrow purpose and workflow were easy to understand.
+- No tester reported an error or confusing behaviour.
+- 100% said they would use or recommend the application.
+- Positive feedback highlighted the understandable wallet and status
+  information, milestones, payment amounts, buttons, full escrow workflow,
+  simple dashboard, and mobile responsiveness.
+- No critical improvement was requested.
+
+### Improvements Made During MVP Testing
+
+- Responsive desktop and mobile interface.
+- Clear transaction and wallet states.
+- Exact BigInt XLM/stroop conversion.
+- Lazy-loaded generated Stellar bindings.
+- Accessible modals and error boundary.
+- Privacy-safe analytics and Sentry error monitoring.
+- Automated frontend and contract tests with GitHub Actions CI.
+
 ## Privacy-safe analytics and monitoring
 
 The frontend uses Vercel Web Analytics for aggregate product events and Sentry
