@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build:bindings": "npm run build --prefix packages/milestone-escrow",
+    "build:app": "tsc -b && vite build",
+    "prebuild": "npm run build:bindings",
+    "build": "npm run build:app",
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
