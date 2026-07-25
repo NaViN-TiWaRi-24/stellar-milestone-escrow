@@ -36,6 +36,7 @@
 - [Testing and continuous integration](#testing-and-continuous-integration)
 - [Testnet deployment and verified transactions](#testnet-deployment-and-verified-transactions)
 - [Production frontend deployment](#production-frontend-deployment)
+- [Application screenshots](#application-screenshots)
 - [User testing and feedback](#user-testing-and-feedback)
 - [Known limitations](#known-limitations)
 - [Roadmap](#roadmap)
@@ -350,6 +351,34 @@ VITE_SENTRY_ENABLE_DEV=false
 Enable Web Analytics separately in the Vercel project dashboard. For Sentry,
 create a browser project, store its DSN in Vercel, and review the Sentry
 project's access and retention settings.
+
+## Application screenshots
+
+### Completed escrow workflow
+
+The production interface displays the completed Testnet escrow project, released funds, and paid milestone progress.
+
+![Completed Stellar escrow project](docs/screenshots/01-desktop-completed-project.png)
+
+### Mobile responsive interface
+
+<p align="center">
+  <img src="docs/screenshots/02-mobile-responsive.png" alt="Mobile responsive Stellar escrow interface" width="390">
+</p>
+
+### Continuous integration
+
+![Passing GitHub Actions workflow](docs/screenshots/03-github-actions.png)
+
+### Automated testing
+
+| Soroban contract tests | Frontend tests |
+|---|---|
+| ![17 passing Rust contract tests](docs/screenshots/04-rust-tests.png) | ![22 passing frontend tests](docs/screenshots/05-frontend-tests.png) |
+
+### Verified Stellar Testnet transaction
+
+![Verified Stellar Expert transaction](docs/screenshots/06-stellar-expert-transaction.png)
 
 ## User testing and feedback
 
