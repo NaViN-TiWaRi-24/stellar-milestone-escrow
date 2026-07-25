@@ -10,6 +10,7 @@
 [![Rust tests](https://img.shields.io/badge/Rust%20tests-17%20passing-2EA44F)](#testing-and-continuous-integration)
 [![Frontend tests](https://img.shields.io/badge/frontend%20tests-22%20passing-2EA44F)](#testing-and-continuous-integration)
 
+[Demo Video](https://drive.google.com/file/d/1W-krP8bCeZunltc3WsDG-IqU3UpCkSSU/view?usp=sharing) &middot;
 [Live Demo](https://stellar-milestone-escrow.vercel.app/) &middot;
 [Repository](https://github.com/NaViN-TiWaRi-24/stellar-milestone-escrow) &middot;
 [Stellar Contract](https://lab.stellar.org/r/testnet/contract/CCQGR5ASUDD5BBOWPVU5TNXUH675HSRFHXGWNFT4CPXVQMFZFKX5V2ET) &middot;
@@ -351,6 +352,13 @@ VITE_SENTRY_ENABLE_DEV=false
 Enable Web Analytics separately in the Vercel project dashboard. For Sentry,
 create a browser project, store its DSN in Vercel, and review the Sentry
 project's access and retention settings.
+
+## Demo video
+
+- [Demo video](#demo-video)
+Watch the production MVP walkthrough:- [Application screenshots](#application-screenshots)
+
+[▶ Watch the Stellar Milestone Escrow Level 4 demo](https://drive.google.com/file/d/1W-krP8bCeZunltc3WsDG-IqU3UpCkSSU/view?usp=sharing)
 
 ## Application screenshots
 
