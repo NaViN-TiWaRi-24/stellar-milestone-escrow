@@ -6,6 +6,7 @@ import {
   approveRefund,
   cancelProject,
   fundProject,
+  getProjectCompletionTransactionHash,
   releaseMilestonePayment,
   requestRefund,
   submitMilestone,
@@ -213,6 +214,13 @@ export function ProjectDetailsModal({
   const progress = Math.round(
     (paidMilestones * 100) / Math.max(currentProject.milestones.length, 1),
   );
+  const completionTransactionHash =
+    currentProject.status.tag === "Completed"
+      ? getProjectCompletionTransactionHash(currentProject.id)
+      : null;
+  const completedProjectExplorerUrl = completionTransactionHash
+    ? `https://stellar.expert/explorer/testnet/tx/${completionTransactionHash}`
+    : `https://stellar.expert/explorer/testnet/contract/${escrowContractId}`;
 
   function trackStatus(nextStatus: WriteTransactionStatus) {
     setStatus(nextStatus);
@@ -380,7 +388,7 @@ export function ProjectDetailsModal({
           {currentProject.status.tag === "Completed" && (
             <a
               className="completed-project-link"
-              href={`https://stellar.expert/explorer/testnet/contract/${escrowContractId}`}
+              href={completedProjectExplorerUrl}
               target="_blank"
               rel="noopener noreferrer"
             >

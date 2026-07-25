@@ -5,6 +5,9 @@ const rpcUrl = import.meta.env.VITE_STELLAR_RPC_URL;
 const networkPassphrase = import.meta.env.VITE_STELLAR_NETWORK_PASSPHRASE;
 const contractId = import.meta.env.VITE_ESCROW_CONTRACT_ID;
 const transactionTimeoutSeconds = 60;
+const completionTransactionStoragePrefix =
+  "stellar-milestone-escrow:completion-transaction:";
+const transactionHashPattern = /^[0-9a-f]{64}$/i;
 
 export type WriteTransactionStatus =
   | "preparing"
@@ -19,6 +22,35 @@ export type ProjectWriteReceipt = {
 };
 
 type ProjectTransaction = Awaited<ReturnType<Client["accept_project"]>>;
+
+export function getProjectCompletionTransactionHash(
+  projectId: bigint,
+): string | null {
+  try {
+    const hash = globalThis.localStorage?.getItem(
+      `${completionTransactionStoragePrefix}${projectId.toString()}`,
+    );
+    return hash && transactionHashPattern.test(hash) ? hash : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeProjectCompletionTransactionHash(
+  projectId: bigint,
+  transactionHash: string,
+): void {
+  if (!transactionHashPattern.test(transactionHash)) return;
+
+  try {
+    globalThis.localStorage?.setItem(
+      `${completionTransactionStoragePrefix}${projectId.toString()}`,
+      transactionHash,
+    );
+  } catch {
+    // Browser storage can be unavailable; the UI retains its contract fallback.
+  }
+}
 
 function requireConfiguration(value: string | undefined, name: string): string {
   if (!value) {
@@ -266,13 +298,13 @@ export function approveMilestone(
   );
 }
 
-export function releaseMilestonePayment(
+export async function releaseMilestonePayment(
   projectId: bigint,
   milestoneId: number,
   clientAddress: string,
   onStatusChange?: WriteStatusCallback,
 ) {
-  return executeProjectWrite(
+  const receipt = await executeProjectWrite(
     clientAddress,
     (client) =>
       client.release_milestone_payment(
@@ -282,9 +314,15 @@ export function releaseMilestonePayment(
           client: clientAddress,
         },
         { timeoutInSeconds: transactionTimeoutSeconds },
-      ),
+    ),
     onStatusChange,
   );
+
+  if (receipt.project.status.tag === "Completed") {
+    storeProjectCompletionTransactionHash(projectId, receipt.transactionHash);
+  }
+
+  return receipt;
 }
 
 export function cancelProject(

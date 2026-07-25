@@ -6,6 +6,7 @@ import { ProjectDetailsModal } from "./ProjectDetailsModal";
 import {
   acceptProject,
   fundProject,
+  getProjectCompletionTransactionHash,
 } from "../lib/escrow";
 
 vi.mock("../lib/escrow", () => ({
@@ -14,6 +15,7 @@ vi.mock("../lib/escrow", () => ({
   approveRefund: vi.fn(),
   cancelProject: vi.fn(),
   fundProject: vi.fn(),
+  getProjectCompletionTransactionHash: vi.fn(),
   releaseMilestonePayment: vi.fn(),
   requestRefund: vi.fn(),
   submitMilestone: vi.fn(),
@@ -73,6 +75,8 @@ describe("ProjectDetailsModal", () => {
   beforeEach(() => {
     vi.mocked(acceptProject).mockReset();
     vi.mocked(fundProject).mockReset();
+    vi.mocked(getProjectCompletionTransactionHash).mockReset();
+    vi.mocked(getProjectCompletionTransactionHash).mockReturnValue(null);
   });
 
   it.each([
@@ -143,6 +147,47 @@ describe("ProjectDetailsModal", () => {
     expect(screen.queryByText("Available project actions")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /refund|approve|release|fund|cancel/i }))
       .not.toBeInTheDocument();
+  });
+
+  it("links a completed project to its completion transaction", () => {
+    const completionHash = "a".repeat(64);
+    vi.mocked(getProjectCompletionTransactionHash).mockReturnValue(
+      completionHash,
+    );
+
+    renderDetails(project("Completed", [milestone(0, "Paid")]), client);
+
+    const link = screen.getByRole("link", {
+      name: "View on Stellar Expert ↗",
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      `https://stellar.expert/explorer/testnet/tx/${completionHash}`,
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("uses the contract fallback when a completion hash is unavailable", () => {
+    renderDetails(project("Completed", [milestone(0, "Paid")]), client);
+
+    expect(
+      screen.getByRole("link", { name: "View on Stellar Expert ↗" }),
+    ).toHaveAttribute(
+      "href",
+      `https://stellar.expert/explorer/testnet/contract/${
+        import.meta.env.VITE_ESCROW_CONTRACT_ID
+      }`,
+    );
+  });
+
+  it("hides the Stellar Expert project link before completion", () => {
+    renderDetails(project("Active", [milestone(0, "Approved")]), client);
+
+    expect(
+      screen.queryByRole("link", { name: "View on Stellar Expert ↗" }),
+    ).not.toBeInTheDocument();
+    expect(getProjectCompletionTransactionHash).not.toHaveBeenCalled();
   });
 
   it("shows a friendly RPC error without exposing the raw failure", async () => {
