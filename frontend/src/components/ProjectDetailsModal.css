@@ -160,6 +160,31 @@
   background: linear-gradient(90deg, var(--primary), #9389ff);
 }
 
+.completed-project-link {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+  color: var(--primary);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.completed-project-link:hover {
+  border-color: var(--primary);
+  background: var(--surface-soft);
+}
+
+.completed-project-link:focus-visible {
+  outline: 3px solid rgba(98, 85, 231, 0.18);
+  outline-offset: 2px;
+}
+
 .project-action-buttons {
   flex-wrap: wrap;
   gap: 10px;
@@ -431,7 +456,8 @@
   .project-action-buttons button,
   .fund-confirmation button,
   .milestone-action,
-  .submit-work button {
+  .submit-work button,
+  .completed-project-link {
     width: 100%;
   }
 }

@@ -37,6 +37,8 @@ type ActionStatus =
   | "failed";
 
 const xlmSacId = import.meta.env.VITE_XLM_SAC_ID as string | undefined;
+const escrowContractId = import.meta.env
+  .VITE_ESCROW_CONTRACT_ID as string | undefined;
 const explorerBaseUrl =
   import.meta.env.VITE_STELLAR_EXPLORER_URL ??
   "https://stellar.expert/explorer/testnet";
@@ -374,6 +376,17 @@ export function ProjectDetailsModal({
           >
             <span style={{ width: `${progress}%` }} />
           </div>
+
+          {currentProject.status.tag === "Completed" && (
+            <a
+              className="completed-project-link"
+              href={`https://stellar.expert/explorer/testnet/contract/${escrowContractId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View on Stellar Expert ↗
+            </a>
+          )}
         </section>
 
         {(isClient || isFreelancer) && projectStatus !== "Completed" && (
